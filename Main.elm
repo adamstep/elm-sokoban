@@ -13,8 +13,10 @@ import Html.Events exposing (onClick)
 import Matrix exposing (..)
 import Keyboard.Extra exposing (..)
 
-import Collage exposing (collage, move, toForm, rotate)
-import Element exposing (image)
+import Collage exposing (collage, move, toForm, rotate, Form)
+import Element exposing (image, Element)
+
+import Random exposing (map, int, step, initialSeed)
 
 main =
     Html.program
@@ -50,53 +52,93 @@ type alias Model =
     , grid: Grid
     , position: Location
     , direction: Direction
+    , ornaments: List Ornament
+    }
+
+type alias Ornament = 
+    { position: Location
+      , width: Int
+      , height: Int
+      , degrees: Float
+      , image: String
     }
 
 type alias LevelFile =
     { name : String
-    , width: Int
-    , height: Int
     , text : List String
+    , ornaments : List Ornament
     }
 
 level1 =
-    LevelFile "Level 1" 10 10 [
-        "xxx####",
-        "xxx#  #",
-        "xxx#  #",
-        "xxx#$.#",
-        "####  #",
-        "#     #",
-        "#@$.  #",
-        "#######"
-    ]
+    LevelFile 
+        "Level 1"
+        [ "xxx####"
+        , "xxx#  #"
+        , "xxx#  #"
+        , "xxx#$.#"
+        , "####  #"
+        , "#     #"
+        , "#@$.  #"
+        , "#######"
+        ]
+        []
 
 level2 =
-    LevelFile "Level 6" 11 11 [
-        "###########",
-        "#        @#",
-        "# #$ $ $  #",
-        "# # $$$$  #",
-        "# #$ $ $  #",
-        "# #     $ #",
-        "# #$### ###",
-        "# # #.....#",
-        "# # #.   .#",
-        "#    .....#",
-        "###########"
-    ]
+    LevelFile
+        "Level 6"
+        [ "###########"
+        , "#        @#"
+        , "# #$ $ $  #"
+        , "# # $$$$  #"
+        , "# #$ $ $  #"
+        , "# #     $ #"
+        , "# #$### ###"
+        , "# # #.....#"
+        , "# # #.   .#"
+        , "#    .....#"
+        , "###########"
+        ]
+        []
 
 level3 =
-    LevelFile "Level 6" 8 11 [
-        "x########xx",
-        "x# @#   #xx",
-        "x# $  $ #xx",
-        "x#$ #######",
-        "## $#     #",
-        "#. . .    #",
-        "#.  #######",
-        "#####xxxxxx"
-    ]
+    LevelFile
+        "Level 6"
+        [ "xxxxxxxxxxxxx"
+        , "xx#########xx"
+        , "xx# @#   ##xx"
+        , "xx# $  $ ##xx"
+        , "xx#$ #######x"
+        , "x## $#     #x"
+        , "x#. . .    #x"
+        , "x#.  #######x"
+        , "x#####xxxxxxx"
+        , "xxxxxxxxxxxxx"
+        ]
+        [ Ornament (loc 5 1) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_142.png"
+        , Ornament (loc 6 1) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_07.png"
+        , Ornament (loc 6 1) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_488.png"
+        , Ornament (loc 7 1) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_07.png"
+        , Ornament (loc 7 1) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_488.png"
+        , Ornament (loc 8 1) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_142.png"
+
+        , Ornament (loc 7 6) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_07.png"
+        , Ornament (loc 8 6) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_07.png"
+        , Ornament (loc 9 6) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_07.png"
+        , Ornament (loc 7 6) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_470.png"
+        , Ornament (loc 7 5) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_141.png"
+        , Ornament (loc 7 7) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_142.png"
+
+
+        , Ornament (loc 8 7) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_183.png"
+        , Ornament (loc 9 5) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_183.png"
+
+        , Ornament (loc 1 9) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_111.png"
+        , Ornament (loc 2 10) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_138.png"
+        , Ornament (loc 3 10) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_138.png"
+        , Ornament (loc 2 9) 64 64 90 "/assets/topdown-shooter/PNG/Tiles/tile_324.png"
+        , Ornament (loc 3 9) 64 64 90 "/assets/topdown-shooter/PNG/Tiles/tile_323.png"
+        , Ornament (loc 4 9) 64 64 0 "/assets/topdown-shooter/PNG/Tiles/tile_111.png"
+        ]
 
 parseLevelFile : LevelFile -> (Location, Grid)
 parseLevelFile file =
@@ -134,7 +176,7 @@ init levelFile =
         ( position, grid ) = parseLevelFile levelFile
         direction = Direction 0 1
     in
-        ( Model keyboardModel grid position direction
+        ( Model keyboardModel grid position direction levelFile.ornaments
         , Cmd.batch
             [ Cmd.map KeyboardExtraMsg keyboardCmd
             ]
@@ -315,7 +357,7 @@ defaultTile =
 wallTile : WorldCell -> NeighborCells -> Collage.Form
 wallTile cell neighbors =
     case wallMap neighbors of
-        "1011" -> defaultTile
+        "1011" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_167.png")
         "1001" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_136.png")
         "1010" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_138.png")
         "1000" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_115.png")
@@ -349,9 +391,13 @@ playerTile dir =
             (0, -1) -> (degrees 270)
             _ -> (degrees 0)
     in
-        toForm (image 64 64 "/assets/topdown-shooter/PNG/Woman Green/womanGreen_hold.png")
+        toForm (image 33 43 "/assets/topdown-shooter/PNG/Man Old/manOld_hold.png")
         |> rotate deg
-    
+
+
+floorTile : Collage.Form
+floorTile =
+    toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
 
 tile : WorldCell -> NeighborCells -> Direction -> Collage.Form
 tile cell neighbors playerDir =
@@ -361,31 +407,31 @@ tile cell neighbors playerDir =
         None ->
             toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_01.png")
         Floor Empty ->
-            toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+            floorTile
         Floor Package ->
             toForm (collage 64 64
-                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                [ floorTile
                 , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_129.png")
                 ])
         Floor Player ->
             toForm (collage 64 64
-                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                [ floorTile
                 , playerTile playerDir
                 ])
         Goal Empty ->
             toForm (collage 64 64
-                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                [ floorTile
                 , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_133.png")
                 ])
         Goal Package ->
             toForm (collage 64 64
-                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                [ floorTile
                 , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_129.png")
                 , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_132.png")
                 ])
         Goal Player ->
             toForm (collage 64 64
-                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                [ floorTile
                 , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_133.png")
                 , playerTile playerDir
                 ])
@@ -414,7 +460,21 @@ renderBoard model =
                 |> move (toFloat x, toFloat -y)
                 |> move (toFloat -width / 2, toFloat height / 2)
 
-        forms = mapWithLocation cellForm model.grid
-        tiles = collage width height (flatten forms)
+
+        ornamentForm = \o ->
+            let
+                x = (snd o.position) * 64
+                y = (fst o.position) * 64
+            in
+                (image o.width o.height o.image)
+                |> toForm
+                |> rotate (degrees o.degrees)
+                |> move (toFloat x, toFloat -y)
+                |> move (toFloat -width / 2, toFloat height / 2)
+                
+
+        gameForms = mapWithLocation cellForm model.grid
+        ornamentForms = List.map ornamentForm model.ornaments
+        tiles = collage width height (List.append (flatten gameForms) ornamentForms)
     in
         Element.toHtml tiles
