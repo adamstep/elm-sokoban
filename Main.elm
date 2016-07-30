@@ -13,9 +13,12 @@ import Html.Events exposing (onClick)
 import Matrix exposing (..)
 import Keyboard.Extra exposing (..)
 
+import Collage exposing (collage, move, toForm, rotate)
+import Element exposing (image)
+
 main =
     Html.program
-    { init = init level4
+    { init = init level3
     , view = view
     , update = update
     , subscriptions = subscriptions
@@ -38,10 +41,15 @@ type alias Grid = Matrix WorldCell
 
 type alias Direction = { x : Int, y : Int}
 
+noDirection : Direction
+noDirection =
+    Direction 0 0
+
 type alias Model =
     { keyboardModel : Keyboard.Extra.Model
     , grid: Grid
     , position: Location
+    , direction: Direction
     }
 
 type alias LevelFile =
@@ -53,17 +61,17 @@ type alias LevelFile =
 
 level1 =
     LevelFile "Level 1" 10 10 [
-        "   ####",
-        "   #  #",
-        "   #  #",
-        "   #$.#",
+        "xxx####",
+        "xxx#  #",
+        "xxx#  #",
+        "xxx#$.#",
         "####  #",
         "#     #",
         "#@$.  #",
         "#######"
     ]
 
-level6 =
+level2 =
     LevelFile "Level 6" 11 11 [
         "###########",
         "#        @#",
@@ -78,16 +86,16 @@ level6 =
         "###########"
     ]
 
-level4 =
+level3 =
     LevelFile "Level 6" 8 11 [
-        " ########  ",
-        " # @#   #  ",
-        " # $  $ #  ",
-        " #$ #######",
+        "x########xx",
+        "x# @#   #xx",
+        "x# $  $ #xx",
+        "x#$ #######",
         "## $#     #",
         "#. . .    #",
         "#.  #######",
-        "#####      "
+        "#####xxxxxx"
     ]
 
 parseLevelFile : LevelFile -> (Location, Grid)
@@ -124,8 +132,9 @@ init levelFile =
     let
         ( keyboardModel, keyboardCmd ) = Keyboard.Extra.init
         ( position, grid ) = parseLevelFile levelFile
+        direction = Direction 0 1
     in
-        ( Model keyboardModel grid position
+        ( Model keyboardModel grid position direction
         , Cmd.batch
             [ Cmd.map KeyboardExtraMsg keyboardCmd
             ]
@@ -184,8 +193,9 @@ update msg model =
                 Keyboard.Extra.update keyMsg model.keyboardModel
             direction = Keyboard.Extra.arrows keyboardModel
             newModel = updateLoc direction model
+            playerDirection = if direction == noDirection then model.direction else direction
         in
-            ( { newModel | keyboardModel = keyboardModel }
+            ( { newModel | keyboardModel = keyboardModel, direction = playerDirection }
                 , Cmd.map KeyboardExtraMsg keyboardCmd
                 )
 
@@ -277,65 +287,134 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     div []
-        [ tcells model
+        [ renderBoard model
           , div [ ] [ text ("num empty: " ++ toString (numGoals model)) ]
           , div [ ] [ text ("num full: " ++ toString (numFullGoals model)) ]
         ]
 
-tcells: Model -> Html Msg
-tcells model =
-  let
-    cells = mapWithLocation tcell model.grid
-    rows = List.map (\r -> tr [] r) (Matrix.toList cells)
-  in
-    table [class "grid", style [("backgroundColor", "#ddd"), ("fontSize", "30px"), ("textAlign", "center"), ("lineHeight", "40px")]] rows
+type alias NeighborCells =
+    { north: WorldCell
+    , east: WorldCell
+    , south: WorldCell
+    , west: WorldCell
+    }
 
-playerCell =
-   td [style [("backgroundColor", "#eee"), ("width", "40px"), ("height", "40px")] ] [ text "👷" ] 
+wallMap : NeighborCells -> String
+wallMap neighbors =
+    let
+        toChar = \n ->
+            case n of
+                Wall -> '1'
+                _ -> '0'
+    in
+        String.fromList (List.map toChar [neighbors.north, neighbors.east, neighbors.south, neighbors.west])
 
+defaultTile =
+    toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_171.png")
 
-wellWithPlayerCell =
-   td [style [("backgroundColor", "lightblue"), ("width", "40px"), ("height", "40px")] ] [ text "👷" ] 
+wallTile : WorldCell -> NeighborCells -> Collage.Form
+wallTile cell neighbors =
+    case wallMap neighbors of
+        "1011" -> defaultTile
+        "1001" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_136.png")
+        "1010" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_138.png")
+        "1000" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_115.png")
 
-wallCell =
-    td [ style [("backgroundColor", "#666"), ("width", "40px"), ("height", "40px")] ] [ text "⬛" ]
+        "1111" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_169.png")
+        "1101" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_113.png")
+        "1110" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_140.png")
+        "1100" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_137.png")
 
+        "0011" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_109.png")
+        "0001" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_142.png")
+        "0010" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_141.png")
+        "0000" -> defaultTile
 
-emptyCell =
-    td [ style [("backgroundColor", "white"), ("width", "40px"), ("height", "40px")] ] [ ]
+        "0111" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_112.png")
+        "0101" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_111.png")
+        "0110" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_110.png")
+        "0100" -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_114.png")
 
-boxCell =
-    td [ style [("backgroundColor", "#eee"), ("width", "40px"), ("height", "40px")] ] [ text "📦" ]
+        _ -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_171.png")
 
-wellCell =
-    td [ style [("backgroundColor", "lightblue"), ("width", "40px"), ("height", "40px")] ] [ text "🚢" ]
+playerTile : Direction -> Collage.Form
+playerTile dir =
+    let
+        x = dir.x
+        y = dir.y
+        deg = case (x, y) of
+            (1, 0) -> (degrees 0)
+            (0, 1) -> (degrees 90)
+            (-1, 0) -> (degrees 180)
+            (0, -1) -> (degrees 270)
+            _ -> (degrees 0)
+    in
+        toForm (image 64 64 "/assets/topdown-shooter/PNG/Woman Green/womanGreen_hold.png")
+        |> rotate deg
+    
 
-
-wellWithBoxCell =
-    td [ style [("backgroundColor", "lightblue"), ("width", "40px"), ("height", "40px")] ] [ text "📦" ]
-
-clearCell =
-    td [ style [("backgroundColor", "#eee"), ("width", "40px"), ("height", "40px")] ] [ ]
-
-baseStyles =
-    [("width", "40px"), ("height", "40px")]
-
-tcell : Location -> WorldCell -> Html Msg
-tcell pos cell =
+tile : WorldCell -> NeighborCells -> Direction -> Collage.Form
+tile cell neighbors playerDir =
     case cell of
-        Floor Empty ->
-            clearCell
-        Floor Package ->
-            boxCell
-        Floor Player ->
-            playerCell
         Wall ->
-            wallCell
+            wallTile cell neighbors
         None ->
-            emptyCell
+            toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_01.png")
+        Floor Empty ->
+            toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+        Floor Package ->
+            toForm (collage 64 64
+                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_129.png")
+                ])
+        Floor Player ->
+            toForm (collage 64 64
+                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                , playerTile playerDir
+                ])
         Goal Empty ->
-            wellCell
+            toForm (collage 64 64
+                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_133.png")
+                ])
         Goal Package ->
-            wellWithBoxCell
+            toForm (collage 64 64
+                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_129.png")
+                , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_132.png")
+                ])
         Goal Player ->
-            wellWithPlayerCell
+            toForm (collage 64 64
+                [ toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_11.png")
+                , toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_133.png")
+                , playerTile playerDir
+                ])
+
+renderBoard : Model -> Html Msg
+renderBoard model =
+    let
+        numRows = rowCount model.grid
+        numCols = colCount model.grid
+        height = 64 * numRows
+        width = 64 * numCols
+
+        cellForm = \l c ->
+            let
+                x = (snd l) * 64
+                y = (fst l) * 64
+                posX = (fst l)
+                posY = (snd l)
+                neighbors = (NeighborCells
+                    (withDefault None (get (loc (posX - 1) posY) model.grid)))
+                    (withDefault None (get (loc posX (posY - 1)) model.grid))
+                    (withDefault None (get (loc (posX + 1) posY) model.grid))
+                    (withDefault None (get (loc posX (posY + 1)) model.grid))
+            in
+                tile c neighbors model.direction
+                |> move (toFloat x, toFloat -y)
+                |> move (toFloat -width / 2, toFloat height / 2)
+
+        forms = mapWithLocation cellForm model.grid
+        tiles = collage width height (flatten forms)
+    in
+        Element.toHtml tiles
