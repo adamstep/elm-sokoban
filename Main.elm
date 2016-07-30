@@ -1,163 +1,341 @@
 import Array exposing (Array)
+import Char
 import List exposing (map)
-import Maybe exposing (andThen)
+import String
+import Maybe exposing (withDefault, andThen)
 import Debug exposing (log)
+import Platform.Cmd exposing (..)
 
 import Html exposing (Html, Attribute, button, div, text, table, tr, td)
 import Html.Attributes exposing (style, title, class, classList, attribute, href)
 import Html.App as Html
 import Html.Events exposing (onClick)
+import Matrix exposing (..)
+import Keyboard.Extra exposing (..)
 
 main =
-    Html.beginnerProgram
-    { model = model
+    Html.program
+    { init = init level4
     , view = view
     , update = update
+    , subscriptions = subscriptions
     }
 
 -- MODEL
 
-type alias Grid =
-  Array Row
+type WorldCell
+  = Wall
+  | None
+  | Floor Item
+  | Goal Item
 
-type alias Row =
-  Array Cell
+type Item
+  = Empty
+  | Package
+  | Player
 
-type alias Cell =
-  { status : CellStatus
-  }
+type alias Grid = Matrix WorldCell
 
-type CellStatus
-  = Clear
-  | Block
-  | Wall
-
-type alias Position =
-    { x : Int
-    , y : Int
-    }
-
-createCell : Int -> Int -> Cell
-createCell y x =
-  Cell Clear
-
-createRow : Int -> Int -> Row
-createRow y xLen =
-    Array.initialize xLen (\x -> createCell y x)
-
-createGrid : Int -> Int -> Grid
-createGrid yLen xLen =
-    Array.initialize yLen (\y -> createRow y xLen)
-
-getCell : Int -> Int -> Grid -> Maybe Cell
-getCell y x grid =
-    (Array.get y grid) `andThen` (Array.get x)
-
-
-setCellInRow : Int -> Cell -> Row -> Row
-setCellInRow x cell row =
-    Array.set x cell row
-
-
-setCell : Cell -> Int -> Int -> Grid -> Grid
-setCell cell y x grid =
-    let
-        row = (Array.get y grid)
-    in
-        case row of
-            Nothing ->
-                grid
-            Just r ->
-                Array.set y (setCellInRow x cell r) grid
-
-setWall : Int -> Int -> Grid -> Grid
-setWall y x grid =
-    setCell (Cell Wall) y x grid
-
-setBlock : Int -> Int -> Grid -> Grid
-setBlock y x grid =
-    setCell (Cell Block) y x grid
+type alias Direction = { x : Int, y : Int}
 
 type alias Model =
-    { grid: Grid
-    , position: Position
+    { keyboardModel : Keyboard.Extra.Model
+    , grid: Grid
+    , position: Location
     }
 
-model : Model
-model =
-    let
-        position = Position 7 5
-        grid = createGrid 10 10
-            |> setWall 1 1
-            |> setWall 1 2
-            |> setWall 1 3
-            |> setWall 2 3
-            |> setBlock 3 3
-            |> setBlock 4 4
-            |> setBlock 5 5
-    in
-        Model grid position
+type alias LevelFile =
+    { name : String
+    , width: Int
+    , height: Int
+    , text : List String
+    }
 
-
-
--- UPDATE
-
-
-type Msg
-    = Up
-    | Down
-    | Left
-    | Right
-
-
-update : Msg -> Model -> Model
-update msg model =
-    case msg of
-    Up ->
-        model
-
-    Down ->
-        model
-
-    Left ->
-        model
-
-    Right ->
-        model
-
-
-
--- VIEW
-
-
-view : Model -> Html Msg
-view model =
-    div [] [
-        tgrid model.position model.grid
+level1 =
+    LevelFile "Level 1" 10 10 [
+        "   ####",
+        "   #  #",
+        "   #  #",
+        "   #$.#",
+        "####  #",
+        "#     #",
+        "#@$.  #",
+        "#######"
     ]
 
-tgrid : Position -> Grid -> Html Msg
-tgrid pos grid =
-  let
-    rows = Array.toList grid
-        |> List.map (trow pos)
-  in
-    table [class "grid"] rows
+level6 =
+    LevelFile "Level 6" 11 11 [
+        "###########",
+        "#        @#",
+        "# #$ $ $  #",
+        "# # $$$$  #",
+        "# #$ $ $  #",
+        "# #     $ #",
+        "# #$### ###",
+        "# # #.....#",
+        "# # #.   .#",
+        "#    .....#",
+        "###########"
+    ]
 
-trow : Position -> Row -> Html Msg
-trow pos row =
+level4 =
+    LevelFile "Level 6" 8 11 [
+        " ########  ",
+        " # @#   #  ",
+        " # $  $ #  ",
+        " #$ #######",
+        "## $#     #",
+        "#. . .    #",
+        "#.  #######",
+        "#####      "
+    ]
+
+parseLevelFile : LevelFile -> (Location, Grid)
+parseLevelFile file =
     let
-        cells = Array.toList row
-            |> List.map (tcell pos)
-    in
-        tr [] cells
+        charMatrix = Matrix.fromList (List.map (\a -> String.toList a) file.text)
+        charToCell = \c -> case c of
+            '#' -> Wall
+            '$' -> Floor Package
+            '@' -> Floor Player
+            ' ' -> Floor Empty
+            '*' -> Goal Package
+            '+' -> Goal Player
+            '.' -> Goal Empty
+            _ -> None
 
-tcell : Position -> Cell -> Html Msg
+        charToPlayerLoc = \loc c -> case c of
+            '@' -> Just loc
+            '+' -> Just loc
+            _ -> Nothing
+            
+        grid = Matrix.map charToCell charMatrix
+        position = Matrix.mapWithLocation charToPlayerLoc charMatrix
+            |> Matrix.flatten
+            |> List.filter (\c -> c /= Nothing)
+            |> List.head
+            |> withDefault (Just (loc 0 0))
+            |> withDefault (loc 0 0)
+    in
+        (position, grid)
+
+init : LevelFile -> ( Model, Cmd Msg )
+init levelFile =
+    let
+        ( keyboardModel, keyboardCmd ) = Keyboard.Extra.init
+        ( position, grid ) = parseLevelFile levelFile
+    in
+        ( Model keyboardModel grid position
+        , Cmd.batch
+            [ Cmd.map KeyboardExtraMsg keyboardCmd
+            ]
+        )
+
+setNone : Location -> Grid -> Grid
+setNone loc grid =
+    set loc None grid
+
+setWall : Location -> Grid -> Grid
+setWall loc grid =
+    set loc Wall grid
+
+setGoal : Location -> Grid -> Grid
+setGoal loc grid =
+    set loc (Goal Empty) grid
+
+setPackage : Location -> Grid -> Grid
+setPackage loc grid =
+    let
+        cell = withDefault (Floor Empty) (get loc grid)
+        val = case cell of
+            Floor Empty -> Floor Package
+            Goal Empty -> Goal Package
+            _ -> cell
+    in
+        set loc val grid
+
+setPlayer : Location -> Grid -> Grid
+setPlayer loc grid =
+    let
+        cell = withDefault (Floor Empty) (get loc grid)
+        val = case cell of
+            Floor Empty -> Floor Player
+            Goal Empty -> Goal Player
+            _ -> cell
+    in
+        set loc val grid
+
+numGoals model =
+    List.length (List.filter (\a -> a == Goal Empty || a == Goal Player) (flatten model.grid))
+
+numFullGoals model =
+    List.length (List.filter (\a -> a == Goal Package) (flatten model.grid))
+
+-- UPDATE
+type Msg
+    = KeyboardExtraMsg Keyboard.Extra.Msg
+
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model =
+    case msg of
+    KeyboardExtraMsg keyMsg ->
+        let
+            ( keyboardModel, keyboardCmd ) =
+                Keyboard.Extra.update keyMsg model.keyboardModel
+            direction = Keyboard.Extra.arrows keyboardModel
+            newModel = updateLoc direction model
+        in
+            ( { newModel | keyboardModel = keyboardModel }
+                , Cmd.map KeyboardExtraMsg keyboardCmd
+                )
+
+wrap: Location -> Direction -> Grid -> Location
+wrap loc dir grid =
+    let
+        maxX = (Matrix.colCount grid) - 1
+        maxY = (Matrix.rowCount grid) - 1
+        x = min maxX (max 0 (fst loc) - dir.y)
+        y = min maxY (max 0 (snd loc) + dir.x)
+    in
+        (x, y)
+
+updateLoc: Direction -> Model -> Model
+updateLoc dir model =
+    let
+        newLoc = wrap model.position dir model.grid
+        newPackageLoc = wrap newLoc dir model.grid
+        cell = withDefault None (Matrix.get newLoc model.grid)
+        newGrid = case cell of
+            Wall ->
+                Nothing
+
+            None ->
+                Nothing
+
+            Floor Package ->
+                moveItem Package newLoc newPackageLoc model.grid
+                `andThen`
+                moveItem Player model.position newLoc
+
+            Goal Package ->
+                moveItem Package newLoc newPackageLoc model.grid
+                `andThen`
+                moveItem Player model.position newLoc
+
+            _ ->
+                moveItem Player model.position newLoc model.grid
+    in
+        case newGrid of
+            Nothing ->
+                model
+            Just grid ->
+                { model | grid=grid, position=newLoc }
+
+
+removeItem: Location -> Grid -> Maybe Grid
+removeItem loc grid =
+    let 
+        cell = withDefault None (get loc grid)
+        newCell = case cell of
+            Floor i ->
+                Floor Empty
+            Goal i ->
+                Goal Empty
+            _ ->
+                cell
+    in
+        Just (set loc newCell grid)
+
+setItem: Location -> Item -> Grid -> Maybe Grid
+setItem loc item grid =
+    let
+        cell = withDefault None (get loc grid)
+        newCell = case cell of
+            Floor Empty ->
+                Just (Floor item)
+            Goal Empty ->
+                Just (Goal item)
+            _ ->
+                Nothing
+    in
+        case newCell of
+            Nothing ->
+                Nothing
+            Just cell ->
+                Just (set loc cell grid)
+
+moveItem: Item -> Location -> Location -> Grid -> Maybe Grid
+moveItem item fromLoc toLoc grid =
+    setItem toLoc item grid `andThen` removeItem fromLoc
+
+-- SUBSCRIPTIONS
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.map KeyboardExtraMsg Keyboard.Extra.subscriptions
+
+-- VIEW
+view : Model -> Html Msg
+view model =
+    div []
+        [ tcells model
+          , div [ ] [ text ("num empty: " ++ toString (numGoals model)) ]
+          , div [ ] [ text ("num full: " ++ toString (numFullGoals model)) ]
+        ]
+
+tcells: Model -> Html Msg
+tcells model =
+  let
+    cells = mapWithLocation tcell model.grid
+    rows = List.map (\r -> tr [] r) (Matrix.toList cells)
+  in
+    table [class "grid", style [("backgroundColor", "#ddd"), ("fontSize", "30px"), ("textAlign", "center"), ("lineHeight", "40px")]] rows
+
+playerCell =
+   td [style [("backgroundColor", "#eee"), ("width", "40px"), ("height", "40px")] ] [ text "👷" ] 
+
+
+wellWithPlayerCell =
+   td [style [("backgroundColor", "lightblue"), ("width", "40px"), ("height", "40px")] ] [ text "👷" ] 
+
+wallCell =
+    td [ style [("backgroundColor", "#666"), ("width", "40px"), ("height", "40px")] ] [ text "⬛" ]
+
+
+emptyCell =
+    td [ style [("backgroundColor", "white"), ("width", "40px"), ("height", "40px")] ] [ ]
+
+boxCell =
+    td [ style [("backgroundColor", "#eee"), ("width", "40px"), ("height", "40px")] ] [ text "📦" ]
+
+wellCell =
+    td [ style [("backgroundColor", "lightblue"), ("width", "40px"), ("height", "40px")] ] [ text "🚢" ]
+
+
+wellWithBoxCell =
+    td [ style [("backgroundColor", "lightblue"), ("width", "40px"), ("height", "40px")] ] [ text "📦" ]
+
+clearCell =
+    td [ style [("backgroundColor", "#eee"), ("width", "40px"), ("height", "40px")] ] [ ]
+
+baseStyles =
+    [("width", "40px"), ("height", "40px")]
+
+tcell : Location -> WorldCell -> Html Msg
 tcell pos cell =
-    case cell.status of
-        Clear ->
-            td [ style [("backgroundColor", "#eee"), ("width", "20px"), ("height", "20px")] ] [ ]
-        Block ->
-            td [ style [("backgroundColor", "red"), ("width", "20px"), ("height", "20px")] ] [ ]
+    case cell of
+        Floor Empty ->
+            clearCell
+        Floor Package ->
+            boxCell
+        Floor Player ->
+            playerCell
         Wall ->
-            td [ style [("backgroundColor", "#333"), ("width", "20px"), ("height", "20px")] ] [ ]
+            wallCell
+        None ->
+            emptyCell
+        Goal Empty ->
+            wellCell
+        Goal Package ->
+            wellWithBoxCell
+        Goal Player ->
+            wellWithPlayerCell
