@@ -1,8 +1,8 @@
-module View exposing (view)
+module Level.View exposing (view)
 
 import String
 import Maybe exposing (withDefault, andThen)
-import Model exposing (WorldCell, WallType, Item, FloorType, PackageType, Grid, Direction, Ornament, Model, removeItem, setItem, moveItem, wrap)
+import Level.Model as Model exposing (WorldCell, WallType, Item, FloorType, PackageType, Grid, Direction, Ornament, Model, removeItem, setItem, moveItem, wrap)
 import Html exposing (Html, Attribute, button, div, text, table, tr, td)
 import Html.Attributes exposing (style, title, class, classList, attribute, href)
 

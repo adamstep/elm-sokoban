@@ -11,16 +11,17 @@ import Html.App as Html
 import Html.Events exposing (onClick)
 import Matrix exposing (..)
 import Keyboard.Extra exposing (..)
+import Task
 
 import Collage exposing (collage, move, toForm, rotate, scale, Form)
 import Element exposing (image, Element)
 
 import Time exposing (Time, millisecond)
-import AnimationFrame
 import Assets
-import Model exposing (WorldCell, WallType, Item, FloorType, PackageType, Grid, Direction, Ornament, Model, removeItem, setItem, moveItem, wrap , init)
-import Levels exposing (..)
-import View exposing (view)
+import Level.Model exposing (WorldCell, WallType, Item, FloorType, PackageType, Grid, Direction, Ornament, Model, removeItem, setItem, moveItem, wrap , init)
+import Level.Levels as Levels
+import Level.View exposing (view)
+import Level.Update exposing (Msg, move, update, subscriptions)
 
 main =
     Html.program
@@ -32,18 +33,19 @@ main =
 
 -- MODEL
 
-type alias Level =
-    { model: Model.Model
+type alias Model =
+    { levelModel: Level.Model.Model
     , keyboardModel: Keyboard.Extra.Model
+    , keyboardDisabled: Bool
     }
 
-init : (Location, Grid, List Ornament) -> ( Level, Cmd Msg )
+init : (Location, Grid, List Ornament) -> ( Model, Cmd Msg )
 init (position, grid, ornaments) =
     let
         ( keyboardModel, keyboardCmd ) = Keyboard.Extra.init
-        model = Model.init (position, grid, ornaments)
+        levelModel = Level.Model.init (position, grid, ornaments)
     in
-        ( Level model keyboardModel
+        ( Model levelModel keyboardModel False
         , Cmd.batch
             [ Cmd.map KeyboardExtraMsg keyboardCmd
             ]
@@ -53,40 +55,39 @@ init (position, grid, ornaments) =
 
 type Msg
     = KeyboardExtraMsg Keyboard.Extra.Msg
-    | Tick Time
+    | LevelMsg Level.Update.Msg
 
-update : Msg -> Level -> (Level, Cmd Msg)
-update msg level =
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model =
     case msg of
     KeyboardExtraMsg keyMsg ->
         let
             ( keyboardModel, keyboardCmd ) =
-                Keyboard.Extra.update keyMsg level.keyboardModel
+                Keyboard.Extra.update keyMsg model.keyboardModel
             direction = Keyboard.Extra.arrows keyboardModel
-            playerDirection = if direction == Model.noDirection then level.model.direction else direction
-            updatedModel = Model.updateLoc direction level.model
-            newModel = { updatedModel | direction = playerDirection }
-        in
-            ( { level | keyboardModel = keyboardModel, model = newModel }
-                , Cmd.map KeyboardExtraMsg keyboardCmd
-                )
 
-    Tick newTime ->
-        let
-            model = level.model
-            newModel = { model | counter = (model.counter + 1) % 200 }
+            task = case model.keyboardDisabled of
+                False -> Task.perform LevelMsg LevelMsg (Task.succeed (Level.Update.move direction))
+                True -> Cmd.none
         in
-        ({ level | model = newModel }, Cmd.none)
+            ( model, Cmd.batch
+                [ task
+                , Cmd.map KeyboardExtraMsg keyboardCmd
+                ]
+            )
+
+    LevelMsg msg ->
+        ( { model | levelModel = Level.Update.update msg model.levelModel }, Cmd.none )
 
 -- SUBSCRIPTIONS
-subscriptions : Level -> Sub Msg
+subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Sub.map KeyboardExtraMsg Keyboard.Extra.subscriptions
-        , AnimationFrame.times Tick
+        , Sub.map LevelMsg Level.Update.subscriptions
         ]
 
 -- VIEW
-view : Level -> Html Msg
-view level =
-    View.view level.model
+view : Model -> Html Msg
+view model =
+    Level.View.view model.levelModel

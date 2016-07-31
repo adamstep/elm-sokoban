@@ -1,9 +1,9 @@
-module Levels exposing (..)
+module Level.Levels exposing (..)
 
 import String
 import Assets
 import Maybe exposing (withDefault, andThen)
-import Model exposing (..)
+import Level.Model as Model exposing (..)
 import Matrix exposing (Location, loc, set)
 
 type alias LevelFile =

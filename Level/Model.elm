@@ -1,4 +1,4 @@
-module Model exposing (..)
+module Level.Model exposing (..)
 
 import Matrix exposing (..)
 import Keyboard.Extra exposing (..)
