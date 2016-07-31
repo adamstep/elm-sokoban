@@ -53,8 +53,7 @@ noDirection =
     Direction 0 0
 
 type alias Model =
-    { keyboardModel : Keyboard.Extra.Model
-    , counter: Int
+    { counter: Int
     , grid: Grid
     , position: Location
     , direction: Direction
@@ -66,6 +65,10 @@ type alias Ornament =
     , degrees: Float
     , element: Element
     }
+
+init: (Location, Grid, List Ornament) -> Model
+init (position, grid, ornaments) =
+    Model 0 grid position (Direction 0 1) ornaments
 
 removeItem: Location -> Grid -> Maybe Grid
 removeItem loc grid =

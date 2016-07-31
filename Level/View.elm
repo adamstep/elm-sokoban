@@ -12,9 +12,7 @@ import Assets exposing(..)
 import Ease
 import Matrix exposing (..)
 
-import Update exposing(Msg)
-
-view : Model.Model -> Html Msg
+view : Model.Model -> Html msg
 view model =
     div []
         [ renderBoard model
@@ -159,7 +157,7 @@ tile cell neighbors model =
                 , playerTile model.direction
                 ])
 
-renderBoard : Model.Model -> Html Msg
+renderBoard : Model.Model -> Html msg
 renderBoard model =
     let
         numRows = rowCount model.grid
