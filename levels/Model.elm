@@ -114,3 +114,35 @@ wrap loc dir grid =
         y = min maxY (max 0 (snd loc) + dir.x)
     in
         (x, y)
+
+updateLoc: Direction -> Model -> Model
+updateLoc dir model =
+    let
+        newLoc = wrap model.position dir model.grid
+        newPackageLoc = wrap newLoc dir model.grid
+        cell = withDefault None (Matrix.get newLoc model.grid)
+        newGrid = case cell of
+            Wall ->
+                Nothing
+
+            None ->
+                Nothing
+
+            Floor (Package p) t ->
+                moveItem (Package p) newLoc newPackageLoc model.grid
+                `andThen`
+                moveItem Player model.position newLoc
+
+            Goal (Package p) t ->
+                moveItem (Package p) newLoc newPackageLoc model.grid
+                `andThen`
+                moveItem Player model.position newLoc
+
+            _ ->
+                moveItem Player model.position newLoc model.grid
+    in
+        case newGrid of
+            Nothing ->
+                model
+            Just grid ->
+                { model | grid=grid, position=newLoc }

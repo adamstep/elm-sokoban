@@ -4,7 +4,7 @@ import String
 import Assets
 import Maybe exposing (withDefault, andThen)
 import Model exposing (..)
-import Matrix exposing (Location, loc)
+import Matrix exposing (Location, loc, set)
 
 type alias LevelFile =
     { name : String
@@ -96,9 +96,23 @@ level3File =
         ]
 
 level3 =
-    parseLevelFile level3File
+    let
+        (position, grid, ornaments) = parseLevelFile level3File
+        newGrid = grid
+            |> set (loc 5 6) (Floor Empty Wood)
+            |> set (loc 6 6) (Floor Empty Wood)
+            |> set (loc 5 7) (Floor Empty Wood)
+            |> set (loc 6 7) (Goal Empty Wood)
+            |> set (loc 5 8) (Floor Empty Wood)
+            |> set (loc 6 8) (Floor Empty Wood)
+            |> set (loc 5 9) (Floor Empty Wood)
+            |> set (loc 6 9) (Floor Empty Wood)
+            |> set (loc 5 10) (Floor Empty Wood)
+            |> set (loc 6 10) (Floor Empty Wood)
+    in
+        (position, newGrid, ornaments)
 
-parseLevelFile : LevelFile -> (Location, Grid)
+parseLevelFile : LevelFile -> (Location, Grid, List Ornament)
 parseLevelFile file =
     let
         charMatrix = Matrix.fromList (List.map (\a -> String.toList a) file.text)
@@ -121,18 +135,7 @@ parseLevelFile file =
             _ -> Nothing
             
         grid = Matrix.map charToCell charMatrix
-            {--
-            |> set (loc 5 6) (Floor Empty Wood)
-            |> set (loc 6 6) (Floor Empty Wood)
-            |> set (loc 5 7) (Floor Empty Wood)
-            |> set (loc 6 7) (Goal Empty Wood)
-            |> set (loc 5 8) (Floor Empty Wood)
-            |> set (loc 6 8) (Floor Empty Wood)
-            |> set (loc 5 9) (Floor Empty Wood)
-            |> set (loc 6 9) (Floor Empty Wood)
-            |> set (loc 5 10) (Floor Empty Wood)
-            |> set (loc 6 10) (Floor Empty Wood)
-            --}
+
 
         position = Matrix.mapWithLocation charToPlayerLoc charMatrix
             |> Matrix.flatten
@@ -141,5 +144,5 @@ parseLevelFile file =
             |> withDefault (Just (loc 0 0))
             |> withDefault (loc 0 0)
     in
-        (position, grid)
+        (position, grid, file.ornaments)
 
