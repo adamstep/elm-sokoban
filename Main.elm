@@ -21,9 +21,10 @@ import Time exposing (Time, millisecond)
 import Assets
 import Level.Model exposing (WorldCell, WallType, Item, FloorType, PackageType, Grid, Direction, Ornament, Model, removeItem, setItem, moveItem, wrap , init)
 import Level.Levels as Levels
-import Level.View exposing (view)
-import Level.Update exposing (Msg, move, update, subscriptions)
+import Level.View exposing (view, Model, Msg, init, update, subscriptions)
+import Level.Update exposing (Msg(..), move, update, subscriptions)
 import LevelPicker exposing (Model, Msg(..), view, update, init)
+import LevelComplete exposing (Model, Msg(..), view, update, init)
 
 main =
     Html.program
@@ -37,24 +38,29 @@ main =
 
 type alias Model =
     { levelModel: Level.Model.Model
+    , viewModel: Level.View.Model
     , currentLevel: Levels.AvailableLevels
     , levelPickerModel: LevelPicker.Model
+    , levelCompleteModel: LevelComplete.Model
     , keyboardModel: Keyboard.Extra.Model
     , keyboardDisabled: Bool
     , pickingLevel: Bool
     , menuPressed: Bool
     , resetPressed: Bool
+    , levelComplete: Bool
     }
 
 init : ( Model, Cmd Msg )
 init =
     let
         ( keyboardModel, keyboardCmd ) = Keyboard.Extra.init
-        currentLevel = Levels.Level3
+        currentLevel = Levels.Level1
+        viewModel = Level.View.init
         levelModel = Level.Model.init (Levels.getLevel currentLevel)
         levelPickerModel = LevelPicker.init
+        levelCompleteModel = LevelComplete.init
     in
-        ( Model levelModel currentLevel levelPickerModel keyboardModel False False False False
+        ( Model levelModel viewModel currentLevel levelPickerModel levelCompleteModel keyboardModel False False False False False
         , Cmd.batch
             [ Cmd.map KeyboardExtraMsg keyboardCmd
             ]
@@ -65,7 +71,9 @@ init =
 type Msg
     = KeyboardExtraMsg Keyboard.Extra.Msg
     | LevelMsg Level.Update.Msg
+    | LevelViewMsg Level.View.Msg
     | LevelPickerMsg LevelPicker.Msg
+    | LevelCompleteMsg LevelComplete.Msg
     | MenuPressed Bool
     | ResetPressed Bool
     | PickLevel
@@ -91,7 +99,39 @@ update msg model =
             )
 
     LevelMsg msg ->
-        ( { model | levelModel = Level.Update.update msg model.levelModel }, Cmd.none )
+        let
+            ( levelModel, levelCmd ) =
+                Level.Update.update msg model.levelModel
+            newModel = { model | levelModel = levelModel }
+            newCmd = Cmd.map LevelMsg levelCmd
+
+        in
+            case msg of
+                Level.Update.LevelFinished ->
+                    ( { newModel | levelComplete = True, keyboardDisabled = True }, newCmd )
+                _ ->
+                    ( newModel, newCmd )
+
+
+    LevelViewMsg msg ->
+        ( { model | viewModel = Level.View.update msg model.viewModel }, Cmd.none )
+
+    LevelCompleteMsg msg ->
+        let
+            newModel = { model | levelCompleteModel = LevelComplete.update msg model.levelCompleteModel }
+        in
+            case msg of
+                LevelComplete.Replay ->
+                    ( newModel
+                    , Task.perform ChangeLevel ChangeLevel (Task.succeed model.currentLevel)
+                    )
+
+                LevelComplete.Next ->
+                    ( newModel
+                    , Task.perform ChangeLevel ChangeLevel (Task.succeed (Levels.nextLevel model.currentLevel))
+                    )
+
+                _ -> ( newModel, Cmd.none )
 
     LevelPickerMsg msg ->
         let
@@ -124,6 +164,7 @@ update msg model =
             , keyboardDisabled = False
             , levelModel = levelModel
             , currentLevel = availableLevel
+            , levelComplete = False
           }
           , Cmd.none
         )
@@ -134,6 +175,7 @@ subscriptions model =
     Sub.batch
         [ Sub.map KeyboardExtraMsg Keyboard.Extra.subscriptions
         , Sub.map LevelMsg Level.Update.subscriptions
+        , Sub.map LevelViewMsg Level.View.subscriptions
         ]
 
 -- VIEW
@@ -141,9 +183,10 @@ view : Model -> Html Msg
 view model =
     let
         components =
-            [ Html.map LevelMsg (Level.View.view model.levelModel)
+            [ Html.map LevelMsg (Level.View.view model.viewModel model.levelModel)
             , controls model
             , levelPicker model
+            , levelComplete model
             ]
     in
         div [ style
@@ -169,6 +212,21 @@ view model =
                 components
             ]
 
+levelComplete model =
+    if model.levelComplete then
+        div [ style
+                [ ("position", "absolute")
+                , ("top", "0")
+                , ("left", "0")
+                , ("width", "100%")
+                , ("height", "100%")
+                , ("backgroundColor", "rgba(0,0,0,0.8)")
+                ]
+            ]
+            [ Html.map LevelCompleteMsg (LevelComplete.view model.levelCompleteModel)
+            ]
+    else
+        div [] []
 
 levelPicker model =
     if model.pickingLevel then

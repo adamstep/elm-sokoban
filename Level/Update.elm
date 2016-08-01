@@ -1,23 +1,24 @@
-module Level.Update exposing (Msg, move, update, subscriptions)
+module Level.Update exposing (Msg(..), move, update, subscriptions)
 
 import Platform.Cmd exposing (..)
-import Time exposing (Time, millisecond)
 
-import Level.Model exposing (Model, Direction, noDirection, updateLoc)
+import Level.Model exposing (Model, Direction, noDirection, updateLoc, levelComplete)
 import Level.View as View exposing (view)
-
-import AnimationFrame
+import Task
 
 type Msg
-    = Tick Time
-    | Move Direction
+    = Move Direction
+    | LevelFinished
 
 move dir =
     Move dir
 
-update : Msg -> Model -> Model
+
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
+        LevelFinished ->
+            (model, Cmd.none)
         Move direction ->
             let
                 playerDirection = if direction == noDirection then
@@ -35,12 +36,18 @@ update msg model =
                     model.numMoves
                 else
                     model.numMoves + 1
-            in
-                { updatedModel | direction = playerDirection, numMoves = numMoves }
-            
-        Tick newTime ->
-            { model | counter = (model.counter + 1) % 200 }
 
+                f = \_ -> LevelFinished
+                cmd =
+                    if (levelComplete model) then
+                        Task.perform f f (Task.succeed True)
+                    else
+                        Cmd.none
+            in
+                ( { updatedModel | direction = playerDirection, numMoves = numMoves }
+                , cmd
+                )
+            
 subscriptions : Sub Msg
 subscriptions =
-    AnimationFrame.times Tick
+    Sub.batch []

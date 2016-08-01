@@ -68,7 +68,7 @@ controls model =
              , ("width", "100%")
              ] 
           ]
-          (List.map renderLevel model.levels)
+          (List.indexedMap renderLevel model.levels)
         , div [
            style
              [ ("position", "relative")
@@ -110,8 +110,8 @@ cancelButton pressed =
                  ])
              ] [ text "Back" ]   
 
-renderLevel : Levels.AvailableLevels -> Html Msg
-renderLevel level =
+renderLevel : Int -> Levels.AvailableLevels -> Html Msg
+renderLevel index level =
     div []
         [ div
             [ onClick (LevelClicked level)
@@ -123,7 +123,10 @@ renderLevel level =
                 , ("textAlign", "center")
                 , ("color", "white")
                 , ("cursor", "pointer")
+                , ("fontWeight", "bold")
+                , ("fontSize", "32px")
+                , ("opacity", "0.9")
                 ]
             ]
-            [ text "load" ]
+            [ text (toString (index + 1)) ]
         ]

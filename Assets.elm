@@ -49,7 +49,7 @@ tileDir =
     "/assets/topdown-shooter/PNG/Tiles/"
 
 playerDir =
-    "/assets/topdown-shooter/PNG/Man Old/"
+    "/assets/topdown-shooter/PNG/Woman Green/"
 
 tileElement width height name =
     image width height (tileDir ++ name)
@@ -61,8 +61,8 @@ playerElement width height name =
     image width height (playerDir ++ name)
 
 -- player
-playerStand = playerElement 33 43 "manOld_stand.png"
-playerHold = playerElement 33 43 "manOld_hold.png"
+playerStand = playerElement 33 43 "womanGreen_stand.png"
+playerHold = playerElement 33 43 "womanGreen_hold.png"
 
 -- floor tiles
 slate = standardTileElement "tile_11.png"

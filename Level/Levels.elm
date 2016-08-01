@@ -17,8 +17,14 @@ allLevels =
 getLevel l =
     case l of
         Level1 -> level1
-        Level2 -> level2
-        Level3 -> level3
+        Level2 -> level3
+        Level3 -> level2
+
+nextLevel l =
+    case l of
+        Level1 -> Level2
+        Level2 -> Level3
+        Level3 -> Level1
 
 type alias LevelFile =
     { name : String
@@ -77,8 +83,8 @@ level3File =
         , "xxx# @#   ##xxx"
         , "xxx# s  c ##xxx"
         , "xxx#$ #######xx"
-        , "xx## p#     #xx"
-        , "xx#. . .    #xx"
+        , "xx## p#    ##xx"
+        , "xx#. . .   ##xx"
         , "xx#.  #######xx"
         , "xx#####xxxxxxxx"
         , "xxxxxxxxxxxxxxx"
@@ -86,16 +92,17 @@ level3File =
         ]
         [ Ornament (loc 6 2) 0 Assets.wallTopBottomLeft
         , Ornament (loc 7 2) 0 Assets.concrete
-        , Ornament (loc 7 2) 0 Assets.glassRight
         , Ornament (loc 7 1) 0 Assets.concrete
         , Ornament (loc 8 2) 0 Assets.concrete
         , Ornament (loc 8 1) 0 Assets.concrete
+        , Ornament (loc 7 2) 0 Assets.glassRight
         , Ornament (loc 8 2) 0 Assets.glassRight
         , Ornament (loc 9 2) 0 Assets.wallTopBottomLeft
 
         , Ornament (loc 8 7) 0 Assets.concrete
         , Ornament (loc 9 7) 0 Assets.concrete
         , Ornament (loc 10 7) 0 Assets.concrete
+        , Ornament (loc 11 7) 0 Assets.concrete
         , Ornament (loc 8 7) 0 Assets.doorTop
         , Ornament (loc 8 6) 0 Assets.wallTopRightLeft
         , Ornament (loc 8 8) 0 Assets.wallTopBottomLeft

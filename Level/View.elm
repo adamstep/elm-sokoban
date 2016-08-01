@@ -1,4 +1,4 @@
-module Level.View exposing (view)
+module Level.View exposing (view, init, update, subscriptions, Model, Msg)
 
 import String
 import Maybe exposing (withDefault, andThen)
@@ -12,9 +12,31 @@ import Assets exposing(..)
 import Ease
 import Matrix exposing (..)
 
-view : Model.Model -> Html msg
-view model =
-    div [ ] [ renderBoard model ]
+import Time exposing (Time, millisecond)
+import AnimationFrame
+
+type alias Model =
+    { counter: Int
+    }
+
+init =
+    Model 0
+
+type Msg
+    = Tick Time
+
+update msg model =
+    case msg of
+        Tick newTime ->
+            { model | counter = (model.counter + 1) % 200 }
+
+subscriptions : Sub Msg
+subscriptions =
+    AnimationFrame.times Tick
+
+view : Model -> Model.Model -> Html msg
+view viewModel model =
+    div [ ] [ renderBoard viewModel model ]
 
 type alias NeighborCells =
     { north: WorldCell
@@ -58,20 +80,43 @@ wallTile cell neighbors =
 
         _ -> toForm (image 64 64 "/assets/topdown-shooter/PNG/Tiles/tile_171.png")
 
-playerTile : Model.Direction -> Collage.Form
-playerTile dir =
+playerTile : Model.Direction -> Bool -> Collage.Form
+playerTile dir pushed =
     let
+        -- If the player just pushed a package, show them
+        -- with arms extended
+        asset =
+            if pushed then
+                Assets.playerHold
+            else
+                Assets.playerStand
+
         x = dir.x
         y = dir.y
+        -- Face player in the last direction moved
         deg = case (x, y) of
             (1, 0) -> (degrees 0)
             (0, 1) -> (degrees 90)
             (-1, 0) -> (degrees 180)
             (0, -1) -> (degrees 270)
             _ -> (degrees 0)
+
+        -- If the player just pushed a package, make them stand
+        -- closer to the direction they pushed in.
+        m = if pushed then
+                case (x, y) of
+                    (1, 0) -> (10.0, 0.0) -- facing right
+                    (0, 1) -> (0.0, 10.0) -- facing top
+                    (-1, 0) -> (-10.0, 0.0) -- facing left
+                    (0, -1) -> (0, -10.0) -- facing bottom
+                    _ -> (0.0, 0.0)
+             else
+                 (0.0, 0.0)
+
     in
-        toForm Assets.playerHold
+        toForm asset
         |> rotate deg
+        |> move m
 
 
 floorTile : FloorType -> Collage.Form
@@ -118,8 +163,8 @@ checkmark counter =
         toForm (image 21 20 "/assets/uipack_fixed/PNG/green_checkmark.png")
         |> scale ((sf / 5) + 0.8)
 
-tile : WorldCell -> NeighborCells -> Model.Model -> Collage.Form
-tile cell neighbors model =
+tile : WorldCell -> NeighborCells -> Model -> Model.Model -> Collage.Form
+tile cell neighbors viewModel model =
     case cell of
         Model.Wall ->
             wallTile cell neighbors
@@ -135,28 +180,28 @@ tile cell neighbors model =
         Model.Floor Model.Player t->
             toForm (collage 64 64
                 [ floorTile t
-                , playerTile model.direction
+                , playerTile model.direction model.justPushed
                 ])
         Model.Goal Model.Empty t ->
             toForm (collage 64 64
                 [ floorTile t
-                , goalIndicator model.counter
+                , goalIndicator viewModel.counter
                 ])
         Model.Goal (Model.Package p) t ->
             toForm (collage 64 64
                 [ floorTile t
                 , packageTile p
-                , checkmark model.counter
+                , checkmark viewModel.counter
                 ])
         Model.Goal Model.Player t ->
             toForm (collage 64 64
                 [ floorTile t
-                , goalIndicator model.counter
-                , playerTile model.direction
+                , goalIndicator viewModel.counter
+                , playerTile model.direction model.justPushed
                 ])
 
-renderBoard : Model.Model -> Html msg
-renderBoard model =
+renderBoard : Model -> Model.Model -> Html msg
+renderBoard viewModel model =
     let
         numRows = rowCount model.grid
         numCols = colCount model.grid
@@ -175,7 +220,7 @@ renderBoard model =
                     (withDefault Model.None (get (loc (posX + 1) posY) model.grid))
                     (withDefault Model.None (get (loc posX (posY + 1)) model.grid))
             in
-                tile c neighbors model
+                tile c neighbors viewModel model
                 |> move (toFloat x, toFloat -y)
                 |> move (toFloat -width / 2 + 32, toFloat height / 2 - 32)
 

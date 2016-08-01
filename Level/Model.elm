@@ -53,12 +53,12 @@ noDirection =
     Direction 0 0
 
 type alias Model =
-    { counter: Int
-    , grid: Grid
+    { grid: Grid
     , position: Location
     , direction: Direction
     , ornaments: List Ornament
     , numMoves : Int
+    , justPushed : Bool
     }
 
 type alias Ornament = 
@@ -69,7 +69,7 @@ type alias Ornament =
 
 init: (Location, Grid, List Ornament) -> Model
 init (position, grid, ornaments) =
-    Model 0 grid position (Direction 0 1) ornaments 0
+    Model grid position (Direction 0 1) ornaments 0 False
 
 removeItem: Location -> Grid -> Maybe Grid
 removeItem loc grid =
@@ -119,34 +119,55 @@ wrap loc dir grid =
     in
         (x, y)
 
+levelComplete model =
+    let
+        numGoals = Matrix.flatten model.grid
+            |> List.filter 
+                (\c -> case c of
+                    Goal a b -> True
+                    _ -> False
+                )
+            |> List.length
+
+
+        numFilledGoals = Matrix.flatten model.grid
+            |> List.filter
+                (\c -> case c of
+                    Goal (Package a) b -> True
+                    _ -> False
+                )
+            |> List.length
+    in
+        numGoals == numFilledGoals
+
 updateLoc: Direction -> Model -> Model
 updateLoc dir model =
     let
         newLoc = wrap model.position dir model.grid
         newPackageLoc = wrap newLoc dir model.grid
         cell = withDefault None (Matrix.get newLoc model.grid)
-        newGrid = case cell of
+        (newGrid, pushed) = case cell of
             Wall ->
-                Nothing
+                (Nothing, False)
 
             None ->
-                Nothing
+                (Nothing, False)
 
             Floor (Package p) t ->
-                moveItem (Package p) newLoc newPackageLoc model.grid
+                ((moveItem (Package p) newLoc newPackageLoc model.grid
                 `andThen`
-                moveItem Player model.position newLoc
+                moveItem Player model.position newLoc), True)
 
             Goal (Package p) t ->
-                moveItem (Package p) newLoc newPackageLoc model.grid
+                ((moveItem (Package p) newLoc newPackageLoc model.grid
                 `andThen`
-                moveItem Player model.position newLoc
+                moveItem Player model.position newLoc), True)
 
             _ ->
-                moveItem Player model.position newLoc model.grid
+                ((moveItem Player model.position newLoc model.grid), False)
     in
         case newGrid of
             Nothing ->
                 model
             Just grid ->
-                { model | grid=grid, position=newLoc }
+                { model | grid=grid, position=newLoc, justPushed = pushed }
