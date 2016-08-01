@@ -6,9 +6,10 @@ import Maybe exposing (withDefault, andThen)
 import Debug exposing (log)
 import Platform.Cmd exposing (..)
 
-import Html exposing (Html)
+import Html exposing (Html, Attribute, div, button, text)
+import Html.Attributes exposing (..)
 import Html.App as Html
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onMouseDown, onMouseUp)
 import Matrix exposing (..)
 import Keyboard.Extra exposing (..)
 import Task
@@ -22,10 +23,11 @@ import Level.Model exposing (WorldCell, WallType, Item, FloorType, PackageType, 
 import Level.Levels as Levels
 import Level.View exposing (view)
 import Level.Update exposing (Msg, move, update, subscriptions)
+import LevelPicker exposing (Model, Msg(..), view, update, init)
 
 main =
     Html.program
-    { init = init Levels.level3
+    { init = init
     , view = view
     , update = update
     , subscriptions = subscriptions
@@ -35,17 +37,24 @@ main =
 
 type alias Model =
     { levelModel: Level.Model.Model
+    , currentLevel: Levels.AvailableLevels
+    , levelPickerModel: LevelPicker.Model
     , keyboardModel: Keyboard.Extra.Model
     , keyboardDisabled: Bool
+    , pickingLevel: Bool
+    , menuPressed: Bool
+    , resetPressed: Bool
     }
 
-init : (Location, Grid, List Ornament) -> ( Model, Cmd Msg )
-init (position, grid, ornaments) =
+init : ( Model, Cmd Msg )
+init =
     let
         ( keyboardModel, keyboardCmd ) = Keyboard.Extra.init
-        levelModel = Level.Model.init (position, grid, ornaments)
+        currentLevel = Levels.Level3
+        levelModel = Level.Model.init (Levels.getLevel currentLevel)
+        levelPickerModel = LevelPicker.init
     in
-        ( Model levelModel keyboardModel False
+        ( Model levelModel currentLevel levelPickerModel keyboardModel False False False False
         , Cmd.batch
             [ Cmd.map KeyboardExtraMsg keyboardCmd
             ]
@@ -56,6 +65,11 @@ init (position, grid, ornaments) =
 type Msg
     = KeyboardExtraMsg Keyboard.Extra.Msg
     | LevelMsg Level.Update.Msg
+    | LevelPickerMsg LevelPicker.Msg
+    | MenuPressed Bool
+    | ResetPressed Bool
+    | PickLevel
+    | ChangeLevel Levels.AvailableLevels
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -66,18 +80,53 @@ update msg model =
                 Keyboard.Extra.update keyMsg model.keyboardModel
             direction = Keyboard.Extra.arrows keyboardModel
 
-            task = case model.keyboardDisabled of
+            cmd = case model.keyboardDisabled of
                 False -> Task.perform LevelMsg LevelMsg (Task.succeed (Level.Update.move direction))
                 True -> Cmd.none
         in
             ( model, Cmd.batch
-                [ task
+                [ cmd
                 , Cmd.map KeyboardExtraMsg keyboardCmd
                 ]
             )
 
     LevelMsg msg ->
         ( { model | levelModel = Level.Update.update msg model.levelModel }, Cmd.none )
+
+    LevelPickerMsg msg ->
+        let
+            newModel = { model | levelPickerModel = LevelPicker.update msg model.levelPickerModel }
+        in
+            case msg of
+                LevelPicker.LevelClicked l ->
+                    ( newModel, Task.perform ChangeLevel ChangeLevel (Task.succeed l) )
+
+                LevelPicker.Cancel ->
+                    ( { newModel | pickingLevel = False, keyboardDisabled = False }, Cmd.none )
+
+                _ -> ( newModel, Cmd.none )
+
+    PickLevel ->
+        ( { model | pickingLevel = True, keyboardDisabled = True }, Cmd.none )
+
+    MenuPressed pressed ->
+        ( { model | menuPressed = pressed }, Cmd.none )
+
+    ResetPressed pressed ->
+        ( { model | resetPressed = pressed }, Cmd.none )
+
+    ChangeLevel availableLevel ->
+        let
+          levelModel = Level.Model.init (Levels.getLevel availableLevel)
+        in
+        ( { model
+            | pickingLevel = False
+            , keyboardDisabled = False
+            , levelModel = levelModel
+            , currentLevel = availableLevel
+          }
+          , Cmd.none
+        )
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
@@ -90,4 +139,146 @@ subscriptions model =
 -- VIEW
 view : Model -> Html Msg
 view model =
-    Level.View.view model.levelModel
+    let
+        components =
+            [ Html.map LevelMsg (Level.View.view model.levelModel)
+            , controls model
+            , levelPicker model
+            ]
+    in
+        div [ style
+                [ ("position", "relative")
+                , ("width", "100%")
+                , ("height", "100%")
+                , ("display", "flex")
+                , ("justifyContent", "center")
+                , ("alignItems", "center")
+                , ("backgroundColor", "#999")
+                ] 
+            ]
+            [ div [ style
+                    [ ("position", "relative")
+                    , ("width", "720px")
+                    , ("height", "576px")
+                    , ("display", "flex")
+                    , ("justifyContent", "center")
+                    , ("alignItems", "center")
+                    , ("backgroundColor", "#222")
+                    ]
+                ]
+                components
+            ]
+
+
+levelPicker model =
+    if model.pickingLevel then
+        div [ style
+                [ ("position", "absolute")
+                , ("top", "0")
+                , ("left", "0")
+                , ("width", "100%")
+                , ("height", "100%")
+                , ("backgroundColor", "rgba(0,0,0,0.8)")
+                ]
+            ]
+            [ Html.map LevelPickerMsg (LevelPicker.view model.levelPickerModel)
+            ]
+    else
+        div [] []
+
+stats model =
+    div [ ]
+        [ div [
+                style
+                  [ ("color", "#555")
+                  , ("font-family", "sans-serif")
+                  , ("width", "190px")
+                  , ("height", "49px")
+                  , ("background", "url('/assets/uipack_fixed/PNG/green_button13.png')")
+                  , ("line-height", "45px")
+                  , ("text-align", "center")
+                  ]
+              ]
+              [ text ("Moves: " ++ (toString model.numMoves))
+              ]
+        ]
+
+controls model =
+    div [ style
+            [ ("position", "absolute")
+            , ("display", "flex")
+            , ("flexDirection", "row")
+            , ("flexWrap", "wrap")
+            , ("justifyContent", "space-between")
+            , ("alignItems", "center")
+            , ("top", "0")
+            , ("left", "0")
+            , ("width", "700px")
+            , ("padding", "10px")
+            ]
+        ]
+        [ levelsButton model.menuPressed
+        , resetButton model
+        , stats model.levelModel
+        ]
+
+blueButtonStyles pressed =
+    let
+      styles = if pressed then
+        [ ("background", "url('/assets/uipack_fixed/PNG/blue_button10.png')")
+        , ("width", "49px")
+        , ("height", "45px")
+        , ("marginTop", "4px")
+        , ("lineHeight", "45px")
+        ]
+      else
+        [ ("background", "url('/assets/uipack_fixed/PNG/blue_button09.png')")
+        , ("width", "49px")
+        , ("height", "49px")
+        , ("lineHeight", "49px")
+        ]
+    in
+        styles ++
+        [ ("font-family", "sans-serif")
+        , ("color", "white")
+        , ("textAlign", "center")
+        , ("cursor", "pointer")
+        ]
+
+levelsButton pressed =
+    div [ onClick PickLevel
+        , onMouseDown (MenuPressed True)
+        , onMouseUp (MenuPressed False)
+        , style (blueButtonStyles pressed)
+        ]
+        [ div
+            [ style
+                [ ("background", "url('/assets/gameicons/PNG/White/1x/door.png')")
+                , ("backgroundSize", "contain")
+                , ("width", "40px")
+                , ("height", "40px")
+                , ("marginLeft", "5px")
+                , ("marginTop", "1px")
+                , ("opacity", "0.8")
+                ]
+            ] []
+        ]
+
+resetButton model =
+    div [ onClick (ChangeLevel model.currentLevel)
+        , onMouseDown (ResetPressed True)
+        , onMouseUp (ResetPressed False)
+        , style (blueButtonStyles model.resetPressed)
+        ]
+        [ div
+            [ style
+                [ ("background", "url('/assets/gameicons/PNG/White/1x/return.png')")
+                , ("width", "40px")
+                , ("height", "40px")
+                , ("backgroundSize", "contain")
+                , ("marginLeft", "5px")
+                , ("marginTop", "1px")
+                , ("opacity", "0.8")
+                ]
+            ] []
+        ]

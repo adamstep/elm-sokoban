@@ -14,9 +14,7 @@ import Matrix exposing (..)
 
 view : Model.Model -> Html msg
 view model =
-    div []
-        [ renderBoard model
-        ]
+    div [ ] [ renderBoard model ]
 
 type alias NeighborCells =
     { north: WorldCell
@@ -179,7 +177,7 @@ renderBoard model =
             in
                 tile c neighbors model
                 |> move (toFloat x, toFloat -y)
-                |> move (toFloat -width / 2, toFloat height / 2)
+                |> move (toFloat -width / 2 + 32, toFloat height / 2 - 32)
 
 
         ornamentForm = \o ->
@@ -190,11 +188,14 @@ renderBoard model =
                 toForm o.element
                 |> rotate (degrees o.degrees)
                 |> move (toFloat x, toFloat -y)
-                |> move (toFloat -width / 2, toFloat height / 2)
-                
+                |> move (toFloat -width / 2 + 32, toFloat height / 2 - 32)
 
         gameForms = mapWithLocation cellForm model.grid
         ornamentForms = List.map ornamentForm model.ornaments
         tiles = collage width height (List.append (flatten gameForms) ornamentForms)
+            |> toForm
+            |> scale 0.75
+            |> List.repeat 1
+            |> collage 720 576
     in
         Element.toHtml tiles

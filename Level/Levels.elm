@@ -6,6 +6,20 @@ import Maybe exposing (withDefault, andThen)
 import Level.Model as Model exposing (..)
 import Matrix exposing (Location, loc, set)
 
+type AvailableLevels
+    = Level1
+    | Level2
+    | Level3
+
+allLevels =
+    [Level1, Level2, Level3]
+
+getLevel l =
+    case l of
+        Level1 -> level1
+        Level2 -> level2
+        Level3 -> level3
+
 type alias LevelFile =
     { name : String
     , text : List String
@@ -15,16 +29,18 @@ type alias LevelFile =
 level1File =
     LevelFile 
         "Level 1"
-        [ "xxxxxxxxx"
-        , "xxxx####x"
-        , "xxxx#  #x"
-        , "xxxx#  #x"
-        , "xxxx#$.#x"
-        , "x####  #x"
-        , "x#     #x"
-        , "x#@$.  #x"
-        , "x#######x"
-        , "xxxxxxxxx"
+        [ "xxxxxxxxxxxxxxx"
+        , "xxxxxxxxxxxxxxx"
+        , "xxxxxxx####xxxx"
+        , "xxxxxxx#  #xxxx"
+        , "xxxxxxx#  #xxxx"
+        , "xxxxxxx#$.#xxxx"
+        , "xxxx####  #xxxx"
+        , "xxxx#     #xxxx"
+        , "xxxx#@$.  #xxxx"
+        , "xxxx#######xxxx"
+        , "xxxxxxxxxxxxxxx"
+        , "xxxxxxxxxxxxxxx"
         ]
         []
 
@@ -34,17 +50,18 @@ level1 =
 level2File =
     LevelFile
         "Level 6"
-        [ "###########"
-        , "#        @#"
-        , "# #$ $ $  #"
-        , "# # $$$$  #"
-        , "# #$ $ $  #"
-        , "# #     $ #"
-        , "# #$### ###"
-        , "# # #.....#"
-        , "# # #.   .#"
-        , "#    .....#"
-        , "###########"
+        [ "xxxxxxxxxxxxxxx"
+        , "xx###########xx"
+        , "xx#        @#xx"
+        , "xx# #$ $ $  #xx"
+        , "xx# # $$$$  #xx"
+        , "xx# #$ $ $  #xx"
+        , "xx# #     $ #xx"
+        , "xx# #$### ###xx"
+        , "xx# # #.....#xx"
+        , "xx# # #.   .#xx"
+        , "xx#    .....#xx"
+        , "xx###########xx"
         ]
         []
 
@@ -54,61 +71,63 @@ level2 =
 level3File =
     LevelFile
         "Level 6"
-        [ "xxxxxxxxxxxxx"
-        , "xx#########xx"
-        , "xx# @#   ##xx"
-        , "xx# s  c ##xx"
-        , "xx#$ #######x"
-        , "x## p#     #x"
-        , "x#. . .    #x"
-        , "x#.  #######x"
-        , "x#####xxxxxxx"
-        , "xxxxxxxxxxxxx"
+        [ "xxxxxxxxxxxxxxx"
+        , "xxxxxxxxxxxxxxx"
+        , "xxx#########xxx"
+        , "xxx# @#   ##xxx"
+        , "xxx# s  c ##xxx"
+        , "xxx#$ #######xx"
+        , "xx## p#     #xx"
+        , "xx#. . .    #xx"
+        , "xx#.  #######xx"
+        , "xx#####xxxxxxxx"
+        , "xxxxxxxxxxxxxxx"
+        , "xxxxxxxxxxxxxxx"
         ]
-        [ Ornament (loc 5 1) 0 Assets.wallTopBottomLeft
-        , Ornament (loc 6 1) 0 Assets.concrete
-        , Ornament (loc 6 1) 0 Assets.glassRight
-        , Ornament (loc 6 0) 0 Assets.concrete
+        [ Ornament (loc 6 2) 0 Assets.wallTopBottomLeft
+        , Ornament (loc 7 2) 0 Assets.concrete
+        , Ornament (loc 7 2) 0 Assets.glassRight
         , Ornament (loc 7 1) 0 Assets.concrete
-        , Ornament (loc 7 0) 0 Assets.concrete
-        , Ornament (loc 7 1) 0 Assets.glassRight
-        , Ornament (loc 8 1) 0 Assets.wallTopBottomLeft
+        , Ornament (loc 8 2) 0 Assets.concrete
+        , Ornament (loc 8 1) 0 Assets.concrete
+        , Ornament (loc 8 2) 0 Assets.glassRight
+        , Ornament (loc 9 2) 0 Assets.wallTopBottomLeft
 
-        , Ornament (loc 7 6) 0 Assets.concrete
-        , Ornament (loc 8 6) 0 Assets.concrete
-        , Ornament (loc 9 6) 0 Assets.concrete
-        , Ornament (loc 7 6) 0 Assets.doorTop
-        , Ornament (loc 7 5) 0 Assets.wallTopRightLeft
-        , Ornament (loc 7 7) 0 Assets.wallTopBottomLeft
+        , Ornament (loc 8 7) 0 Assets.concrete
+        , Ornament (loc 9 7) 0 Assets.concrete
+        , Ornament (loc 10 7) 0 Assets.concrete
+        , Ornament (loc 8 7) 0 Assets.doorTop
+        , Ornament (loc 8 6) 0 Assets.wallTopRightLeft
+        , Ornament (loc 8 8) 0 Assets.wallTopBottomLeft
 
-        , Ornament (loc 8 7) 0 Assets.smallTree
-        , Ornament (loc 9 5) 0 Assets.smallTree
+        , Ornament (loc 9 8) 0 Assets.smallTree
+        , Ornament (loc 10 6) 0 Assets.smallTree
 
-        , Ornament (loc 1 9) 0 Assets.wallTopBottom
-        , Ornament (loc 2 10) 0 Assets.wallRightLeft
-        , Ornament (loc 3 10) 0 Assets.wallRightLeft
-        , Ornament (loc 2 9) 90 Assets.kitchenRange
-        , Ornament (loc 3 9) 90 Assets.kitchenSink
-        , Ornament (loc 4 9) 0 Assets.wallTopBottom
+        , Ornament (loc 2 10) 0 Assets.wallTopBottom
+        , Ornament (loc 3 11) 0 Assets.wallRightLeft
+        , Ornament (loc 4 11) 0 Assets.wallRightLeft
+        , Ornament (loc 3 10) 90 Assets.kitchenRange
+        , Ornament (loc 4 10) 90 Assets.kitchenSink
+        , Ornament (loc 5 10) 0 Assets.wallTopBottom
 
-        , Ornament (loc 5 10) 90 Assets.largeTv2
-        , Ornament (loc 6 10) 90 Assets.largeTv1
+        , Ornament (loc 6 11) 90 Assets.largeTv2
+        , Ornament (loc 7 11) 90 Assets.largeTv1
         ]
 
 level3 =
     let
         (position, grid, ornaments) = parseLevelFile level3File
         newGrid = grid
-            |> set (loc 5 6) (Floor Empty Wood)
-            |> set (loc 6 6) (Floor Empty Wood)
-            |> set (loc 5 7) (Floor Empty Wood)
-            |> set (loc 6 7) (Goal Empty Wood)
-            |> set (loc 5 8) (Floor Empty Wood)
+            |> set (loc 6 7) (Floor Empty Wood)
+            |> set (loc 7 7) (Floor Empty Wood)
             |> set (loc 6 8) (Floor Empty Wood)
-            |> set (loc 5 9) (Floor Empty Wood)
+            |> set (loc 7 8) (Goal Empty Wood)
             |> set (loc 6 9) (Floor Empty Wood)
-            |> set (loc 5 10) (Floor Empty Wood)
+            |> set (loc 7 9) (Floor Empty Wood)
             |> set (loc 6 10) (Floor Empty Wood)
+            |> set (loc 7 10) (Floor Empty Wood)
+            |> set (loc 6 11) (Floor Empty Wood)
+            |> set (loc 7 11) (Floor Empty Wood)
     in
         (position, newGrid, ornaments)
 

@@ -58,6 +58,7 @@ type alias Model =
     , position: Location
     , direction: Direction
     , ornaments: List Ornament
+    , numMoves : Int
     }
 
 type alias Ornament = 
@@ -68,7 +69,7 @@ type alias Ornament =
 
 init: (Location, Grid, List Ornament) -> Model
 init (position, grid, ornaments) =
-    Model 0 grid position (Direction 0 1) ornaments
+    Model 0 grid position (Direction 0 1) ornaments 0
 
 removeItem: Location -> Grid -> Maybe Grid
 removeItem loc grid =

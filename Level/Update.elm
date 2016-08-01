@@ -20,10 +20,23 @@ update msg model =
     case msg of
         Move direction ->
             let
-                playerDirection = if direction == noDirection then model.direction else direction
+                playerDirection = if direction == noDirection then
+                    model.direction
+                else
+                    direction
+
+                oldPos = model.position
                 updatedModel = updateLoc direction model
+                newPos = updatedModel.position
+
+                samePos = ((fst oldPos) == (fst newPos)) && ((snd oldPos) == (snd newPos))
+
+                numMoves = if samePos then
+                    model.numMoves
+                else
+                    model.numMoves + 1
             in
-                { updatedModel | direction = playerDirection }
+                { updatedModel | direction = playerDirection, numMoves = numMoves }
             
         Tick newTime ->
             { model | counter = (model.counter + 1) % 200 }
