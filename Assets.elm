@@ -39,6 +39,7 @@ module Assets exposing
     , glassRight
     -- door
     , doorTop
+    , doorLeft
     -- trees
     , smallTree
     )
@@ -106,6 +107,7 @@ kitchenRange = standardTileElement "tile_324.png"
 glassRight = standardTileElement "tile_488.png"
 
 doorTop = standardTileElement "tile_470.png"
+doorLeft = standardTileElement "tile_443.png"
 
 -- trees
 smallTree = standardTileElement "tile_183.png"

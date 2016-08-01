@@ -126,6 +126,7 @@ renderLevel index level =
                 , ("fontWeight", "bold")
                 , ("fontSize", "32px")
                 , ("opacity", "0.9")
+                , ("margin", "10px")
                 ]
             ]
             [ text (toString (index + 1)) ]

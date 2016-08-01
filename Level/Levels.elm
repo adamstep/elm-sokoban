@@ -10,21 +10,30 @@ type AvailableLevels
     = Level1
     | Level2
     | Level3
+    | Level4
+    | Level5
+    | Level6
 
 allLevels =
-    [Level1, Level2, Level3]
+    [Level1, Level2, Level3, Level4, Level5, Level6]
 
 getLevel l =
     case l of
         Level1 -> level1
         Level2 -> level3
         Level3 -> level2
+        Level4 -> level4
+        Level5 -> level5
+        Level6 -> level6
 
 nextLevel l =
     case l of
         Level1 -> Level2
         Level2 -> Level3
-        Level3 -> Level1
+        Level3 -> Level4
+        Level4 -> Level5
+        Level5 -> Level6
+        Level6 -> Level1
 
 type alias LevelFile =
     { name : String
@@ -48,10 +57,36 @@ level1File =
         , "xxxxxxxxxxxxxxx"
         , "xxxxxxxxxxxxxxx"
         ]
-        []
+        [ Ornament (loc 3 3) 0 Assets.smallTree
+        , Ornament (loc 4 5) 0 Assets.smallTree
+
+        , Ornament (loc 9 7) 0 Assets.concrete
+        , Ornament (loc 10 7) 0 Assets.concrete
+        , Ornament (loc 11 7) 0 Assets.concrete
+
+        , Ornament (loc 9 6) 0 Assets.wallTopRightBottom
+        , Ornament (loc 9 8) 0 Assets.wallTopBottomLeft
+        , Ornament (loc 9 7) 0 Assets.doorTop
+
+        , Ornament (loc 5 10) 0 Assets.concrete
+        , Ornament (loc 5 11) 0 Assets.concrete
+        , Ornament (loc 5 12) 0 Assets.concrete
+        , Ornament (loc 5 13) 0 Assets.concrete
+        , Ornament (loc 5 14) 0 Assets.concrete
+        , Ornament (loc 5 10) 0 Assets.doorLeft
+
+        , Ornament (loc 4 10) 0 Assets.wallBottomRightLeft
+        , Ornament (loc 6 10) 0 Assets.wallTopRightLeft
+        ]
 
 level1 =
-    parseLevelFile level1File
+    let
+        (position, grid, ornaments) = parseLevelFile level1File
+        newGrid = grid
+            |> set (loc 5 8) (Floor (Package Television) Tile)
+            |> set (loc 8 6) (Floor (Package SmallBox) Tile)
+    in
+        (position, newGrid, ornaments)
 
 level2File =
     LevelFile
@@ -137,6 +172,66 @@ level3 =
             |> set (loc 7 11) (Floor Empty Wood)
     in
         (position, newGrid, ornaments)
+
+level4File =
+    LevelFile
+        "Level 2"
+        [ "########"
+        , "#  #   #"
+        , "#   $  #"
+        , "#  #$$ #"
+        , "## #   #"
+        , "#.. $# #"
+        , "#..   @#"
+        , "########"
+        ]
+        []
+
+level4 =
+    parseLevelFile level4File
+
+level5File =
+    LevelFile
+        "Level 3"
+        [ "xxxxxxxxxxx"
+        , "xx#######xx"
+        , "xx#     #xx"
+        , "xx# $ $ #xx"
+        , "xx# $ $@#xx"
+        , "xx# $$ ##xx"
+        , "xx#  ...#xx"
+        , "xx###...#xx"
+        , "xxxx#####xx"
+        , "xxxxxxxxxxx"
+        ]
+        []
+
+level5 =
+    parseLevelFile level5File
+
+level6File =
+    LevelFile
+        "Level 13"
+        [ "xxxxxxxxxxxxxxx"
+        , "x#############x"
+        , "x#           #x"
+        , "x# $$ # # $$ #x"
+        , "x#  $$...$$  #x"
+        , "x#   ##.##   #x"
+        , "x# .*.....*. #x"
+        , "x#  ###.###  #x"
+        , "x#### $.$ ####x"
+        , "xxxx# $$$ #xxxx"
+        , "xxxx#  @  #xxxx"
+        , "xxxx#######xxxx"
+        ]
+        []
+
+level6 =
+    parseLevelFile level6File
+
+
+
 
 parseLevelFile : LevelFile -> (Location, Grid, List Ornament)
 parseLevelFile file =
