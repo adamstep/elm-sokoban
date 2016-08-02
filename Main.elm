@@ -197,6 +197,7 @@ view model =
                 , ("justifyContent", "center")
                 , ("alignItems", "center")
                 , ("backgroundColor", "#999")
+                , ("fontFamily", "sans-serif")
                 ] 
             ]
             [ div [ style

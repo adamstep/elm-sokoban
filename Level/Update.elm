@@ -4,7 +4,9 @@ import Platform.Cmd exposing (..)
 
 import Level.Model exposing (Model, Direction, noDirection, updateLoc, levelComplete)
 import Level.View as View exposing (view)
-import Task
+import Task exposing (Task, andThen)
+import Process
+import Time
 
 type Msg
     = Move Direction
@@ -38,9 +40,10 @@ update msg model =
                     model.numMoves + 1
 
                 f = \_ -> LevelFinished
+                t = (Process.sleep (0.5 * Time.second)) `andThen` Task.succeed
                 cmd =
                     if (levelComplete model) then
-                        Task.perform f f (Task.succeed True)
+                        Task.perform f f t
                     else
                         Cmd.none
             in
